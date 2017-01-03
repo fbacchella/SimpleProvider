@@ -1,7 +1,10 @@
 package fr.jrds.simpleprovider;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -12,20 +15,63 @@ import java.security.Key;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.KeyStoreSpi;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MultiKeyStore extends KeyStoreSpi {
 
     private final List<KeyStore> stores = new ArrayList<>();
+    {
+        try {
+            KeyStore first = KeyStore.getInstance("JKS");
+            first.load(null, null);
+            stores.add(first);
+        } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    static private final CertificateFactory cf;
+    static private final MessageDigest digest;
+    static {
+        try {
+            cf = CertificateFactory.getInstance("X.509");
+            digest = MessageDigest.getInstance("MD5");
+        } catch (CertificateException | NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    private static final Pattern MARKERS;
+    static {
+        String rkey = "(?<rkey>PRIVATE KEY)";
+        String ukey = "(?<ukey>PUBLIC KEY)";
+        String cert = "(?<cert>CERTIFICATE)";
+        String epk = "(?<epk>ENCRYPTED PRIVATE KEY)";
+        String begin = String.format("(?<begin>-+BEGIN .*-+)");
+        String end = String.format("(?<end>-+END (?:%s|%s|%s|%s)-+)", rkey, ukey, cert, epk);
+        MARKERS = Pattern.compile(String.format("(?:%s)|(?:%s)|.*?", begin, end));
+    }
+    Base64.Decoder decoder = Base64.getDecoder();
+    Base64.Encoder encoder = Base64.getEncoder();
+
+    public MultiKeyStore() {
+        super();
+
+    }
 
     @Override
     public Key engineGetKey(String alias, char[] password) throws NoSuchAlgorithmException, UnrecoverableKeyException {
@@ -260,7 +306,7 @@ public class MultiKeyStore extends KeyStoreSpi {
                 if (operatingSystem.startsWith("Mac")) {
                     systemks = KeyStore.getInstance("KeychainStore");
                 } else if (operatingSystem.startsWith("Windows")){
-                    systemks = KeyStore.getInstance("Windows-MY");
+                    systemks = KeyStore.getInstance("Windows-ROOT");
                 }
                 if (systemks != null) {
                     systemks.load(null, password.toCharArray());
@@ -281,6 +327,8 @@ public class MultiKeyStore extends KeyStoreSpi {
                         break;
                     }
                 }
+            } else if ("pem".equals(type.toLowerCase())) {
+                loadPem(path);
             } else {
                 KeyStore ks = KeyStore.getInstance(type);
                 InputStream is = new FileInputStream(path);
@@ -290,6 +338,44 @@ public class MultiKeyStore extends KeyStoreSpi {
         } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private void loadPem(String filename) {
+        try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
+            String line;
+            StringBuilder buffer = new StringBuilder();
+            while ((line = br.readLine()) != null) {
+                Matcher matcher = MARKERS.matcher(line);
+                matcher.matches();
+                if (matcher.group("begin") != null) {
+                    buffer.setLength(0);
+                } else if (matcher.group("end") != null){
+                    try {
+                        byte[] content = decoder.decode(buffer.toString());
+                        String alias = encoder.encodeToString(digest.digest(content));
+                        // If object already seen, don't add it again
+                        if (stores.get(0).containsAlias(alias)) {
+                            continue;
+                        }
+                        if (matcher.group("cert") != null) {
+                            Certificate cert = cf.generateCertificate(new ByteArrayInputStream(content));
+                            KeyStore.TrustedCertificateEntry entry = new KeyStore.TrustedCertificateEntry(cert);
+                            digest.reset();
+                            stores.get(0).setEntry(alias, entry, null);
+                        }
+                    } catch (CertificateException e) {
+                        e.printStackTrace();
+                    } catch (KeyStoreException e) {
+                        e.printStackTrace();
+                    }
+                } else {
+                    buffer.append(line);
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
 }
