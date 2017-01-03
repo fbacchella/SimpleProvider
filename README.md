@@ -26,7 +26,7 @@ An example is :
     org.bouncycastle.pqc.jcajce.provider.BouncyCastlePQCProvider
     services
 
-The lines type:password=file` gives the path to a key store with an optional password.
+The line `type:password=file` gives the path to a key store with an optional password.
 `default` loads the default keystores for this JVM.
 `system` try to identify the default key store for this system (`KeychainStore` or `Windows-MY`)
 
