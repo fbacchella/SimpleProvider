@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>fr.jrds</groupId>
-    <artifactId>SmartPKI</artifactId>
+    <artifactId>SimpleProvider</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
@@ -15,8 +15,7 @@
         <buildSource>1.8</buildSource>
         <buildTarget>1.8</buildTarget>
         <bouncycastle>1.54</bouncycastle>
-        <mainClass>fr.jrds.TestSmartPki</mainClass>
-        <premainClass>fr.jrds.SmartPki</premainClass>
+        <premainClass>fr.jrds.simpleprovider.SimpleProviderAgent</premainClass>
     </properties>
 
     <dependencies>
@@ -55,9 +54,6 @@
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
                     <archive>
-                        <manifest>
-                            <mainClass>${mainClass}</mainClass>
-                        </manifest>
                         <manifestEntries>
                             <Premain-Class>${premainClass}</Premain-Class>
                         </manifestEntries>

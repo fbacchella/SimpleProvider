@@ -1,4 +1,4 @@
-package fr.jrds;
+package fr.jrds.simpleprovider;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -23,7 +23,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
 
-public class SmartKeyStore extends KeyStoreSpi {
+public class MultiKeyStore extends KeyStoreSpi {
 
     private final List<KeyStore> stores = new ArrayList<>();
 
@@ -259,6 +259,8 @@ public class SmartKeyStore extends KeyStoreSpi {
                 KeyStore systemks = null;
                 if (operatingSystem.startsWith("Mac")) {
                     systemks = KeyStore.getInstance("KeychainStore");
+                } else if (operatingSystem.startsWith("Windows")){
+                    systemks = KeyStore.getInstance("Windows-MY");
                 }
                 if (systemks != null) {
                     systemks.load(null, password.toCharArray());

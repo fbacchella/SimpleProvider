@@ -1,4 +1,4 @@
-package fr.jrds;
+package fr.jrds.simpleprovider;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -12,11 +12,11 @@ import java.util.ServiceLoader;
 import java.util.regex.Matcher;
 
 
-public class SmartPki {
+public class SimpleProviderAgent {
     public static void premain(String agentArgs, Instrumentation ins) {
-        Provider smartpki = new SmartPkiProvider();
-        System.setProperty("javax.net.ssl.trustStoreType", "SPKI");
-        System.setProperty("javax.net.ssl.keyStoreType", "SPKI");
+        Provider smartpki = new SimpleProvider();
+        System.setProperty("javax.net.ssl.trustStoreType", SimpleProvider.NAME);
+        System.setProperty("javax.net.ssl.keyStoreType", SimpleProvider.NAME);
         if (agentArgs != null) {
             System.setProperty("javax.net.ssl.trustStore", agentArgs);
             System.setProperty("javax.net.ssl.keyStore", agentArgs);
@@ -32,8 +32,7 @@ public class SmartPki {
             InputStream stream = new FileInputStream(agentArgs);
             Loader.parse(stream, Loader.MODE.PROVIDERS, c);
         } catch (NoSuchAlgorithmException | CertificateException | IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
     
