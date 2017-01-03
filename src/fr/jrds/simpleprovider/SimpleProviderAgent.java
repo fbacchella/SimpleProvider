@@ -42,6 +42,10 @@ public class SimpleProviderAgent {
             if("services".equals(providerclass)) {
                 ServiceLoader<java.security.Provider> sl =  ServiceLoader.load(Provider.class);
                 for(Provider i: sl) {
+                    //Don't reinsert myself
+                    if (i instanceof SimpleProvider) {
+                        continue;
+                    }
                     try {
                         Security.insertProviderAt(i, Security.getProviders().length + 1);
                     } catch (Exception e) {
@@ -49,6 +53,10 @@ public class SimpleProviderAgent {
                     }
                 }
             } else {
+                //Don't reinsert myself
+                if (SimpleProvider.class.getName().equals(providerclass)) {
+                    return;
+                }
                 Security.insertProviderAt((Provider) Class.forName(providerclass).newInstance(), Security.getProviders().length + 1);
             }
         } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
