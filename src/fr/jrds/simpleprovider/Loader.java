@@ -1,4 +1,4 @@
-package fr.jrds;
+package fr.jrds.simpleprovider;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -9,7 +9,7 @@ import java.security.cert.CertificateException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Loader {
+class Loader {
 
     private static final String SECTION = "\\[(?<section>\\w+)\\]";
     private static final String PROVIDERCLASS = "(?<providerclass>(?:(?:[a-zA-Z_0-9]+\\.[a-zA-Z_0-9\\.]+)|services))";
@@ -17,19 +17,19 @@ public class Loader {
 
     private static final Pattern LINEPATTERN = Pattern.compile(String.format("^(?:(?:%s)|(?:%s)|(?:%s))?\\s*(?:#.*)?$", SECTION, PROVIDERCLASS, STORE));
 
-    public enum MODE {
+    enum MODE {
         STORES,
         PROVIDERS,
         NONE
     }
-    
+
     @FunctionalInterface
-    public interface Consumer {
+    interface Consumer {
         void apply(MODE mode, Matcher m);
     }
 
 
-    public static void parse(InputStream stream, MODE expected, Consumer c) throws IOException, NoSuchAlgorithmException, CertificateException {
+    static void parse(InputStream stream, MODE expected, Consumer c) throws IOException, NoSuchAlgorithmException, CertificateException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
         String line;
         MODE mode = MODE.NONE;
