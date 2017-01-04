@@ -15,14 +15,18 @@ import java.util.regex.Matcher;
 public class SimpleProviderAgent {
     public static void premain(String agentArgs, Instrumentation ins) {
         Provider smartpki = new SimpleProvider();
+        //smartpki.put("config", agentArgs);
+        Security.insertProviderAt(smartpki, Security.getProviders().length + 1);
+
+        Security.setProperty("keystore.type", SimpleProvider.NAME);
+
         System.setProperty("javax.net.ssl.trustStoreType", SimpleProvider.NAME);
         System.setProperty("javax.net.ssl.keyStoreType", SimpleProvider.NAME);
         if (agentArgs != null) {
             System.setProperty("javax.net.ssl.trustStore", agentArgs);
             System.setProperty("javax.net.ssl.keyStore", agentArgs);
         }
-        //smartpki.put("config", agentArgs);
-        Security.insertProviderAt(smartpki, Security.getProviders().length + 1);
+
         Loader.Consumer c = (Loader.MODE mode, Matcher sectionMatch) -> {
             if (sectionMatch.group("providerclass") != null) {
                 loadProvider(sectionMatch.group("providerclass"));
