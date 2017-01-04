@@ -28,8 +28,21 @@ An example is :
 
 The line `type:password=file` gives the path to a key store with an optional password.
 `default` loads the default keystores for this JVM.
-`system` try to identify the default key store for this system (`KeychainStore` or `Windows-MY`)
+`system` try to identify the default key store for this system (`KeychainStore` or `Windows-ROOT`)
 
 It adds the support for the type `pem` that allows to store PEM encoded certificates chain or individual certificate.
 
-Providers settings take either a class name or try to load all providers declared as a service (see http://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html)
+Providers settings take either a class name or try to load all providers declared as a service (see http://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html).
+
+It uses internally some properties so the command line argument and security properties for those are ignore.
+
+It sets the following properties:
+
+ * javax.net.ssl.trustStoreType
+ * javax.net.ssl.keyStoreType
+ * javax.net.ssl.trustStore
+ * javax.net.ssl.keyStore
+ 
+And the the following security property:
+
+ * keystore.type
