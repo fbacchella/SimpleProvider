@@ -163,48 +163,57 @@ public class MultiKeyStore extends KeyStoreSpi {
         }
     }
 
+    /**
+     * Find the first not empty Keystore extracted from the iterator
+     * @param iter
+     * @return a Keystore or null if no more iterator to check
+     */
+    private KeyStore findNonEmpty(Iterator<KeyStore> iter) {
+        KeyStore totry = null;
+        // The aliases enumerator is not usable (empty or null), find the next one
+        // Find the next non empty KeyStore
+        int kssize = 0;
+        while(iter.hasNext()) {
+            totry = iter.next();
+            try {
+                kssize = totry.size();
+                if (kssize != 0) {
+                    break;
+                } else {
+                    totry = null;
+                }
+            } catch (KeyStoreException e) {
+                // This keystore is broken, just skip it
+            }
+        }
+        return totry;
+    }
+
     @Override
     public Enumeration<String> engineAliases() {
         final Iterator<KeyStore> iter = stores.iterator();
         return new Enumeration<String>(){
-            private KeyStore cur = iter.hasNext() ? iter.next() : null;
+            //private KeyStore cur = null;
             private Enumeration<String> enumerator = null;
             @Override
             public boolean hasMoreElements() {
-                if (cur == null) {
-                    return false;
-                }
+                // The current enumerator is empty or non valid, looking for the next one
                 while (enumerator == null || ! enumerator.hasMoreElements()) {
-                    // The enumerator is not usable (empty or null), find the next one
+                    // drop old enumerator
+                    enumerator = null;
+                    KeyStore cur = findNonEmpty(iter);
+                    // The last keystore found was empty or no more to try, keystore enumeration is finished
+                    if (cur == null) {
+                        break;
+                    }
                     try {
-                        if (enumerator == null) {
-                            enumerator = cur.aliases();
-                            if (enumerator.hasMoreElements()) {
-                                break;
-                            } else { 
-                                if (iter.hasNext()) {
-                                    cur = iter.next();
-                                } else {
-                                    return false;
-                                }
-                            }
-                        } else {
-                            enumerator = null;
-                            if (iter.hasNext()) {
-                                cur = iter.next();
-                            } else {
-                                return false;
-                            }
-                        }
+                        enumerator = cur.aliases();
                     } catch (KeyStoreException e) {
-                        if (iter.hasNext()) {
-                            cur = iter.next();
-                        } else {
-                            return false;
-                        }
+                        // This keystore is broken, just skip it
                     }
                 }
-                return true;
+                // If was unable to find a valid new enumerator, enumeration is finished
+                return enumerator != null;
             }
 
             @Override
