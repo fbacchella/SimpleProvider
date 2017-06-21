@@ -35,6 +35,7 @@ public class MultiKeyStore extends KeyStoreSpi {
     private final List<KeyStore> stores = new ArrayList<>();
     {
         try {
+            // An empty initial trust store, for loaded PEM
             KeyStore first = KeyStore.getInstance("JKS");
             first.load(null, null);
             stores.add(first);
@@ -110,6 +111,7 @@ public class MultiKeyStore extends KeyStoreSpi {
                     return val;
                 }
             } catch (KeyStoreException e) {
+                // This keystore is broken, just skip it
             }
         }
         return null;
@@ -124,6 +126,7 @@ public class MultiKeyStore extends KeyStoreSpi {
                     return val;
                 }
             } catch (KeyStoreException e) {
+                // This keystore is broken, just skip it
             }
         }
         return null;
@@ -155,6 +158,7 @@ public class MultiKeyStore extends KeyStoreSpi {
                     ks.deleteEntry(alias);
                 }
             } catch (KeyStoreException e) {
+                // This keystore is broken, just skip it
             }
         }
     }
@@ -220,6 +224,7 @@ public class MultiKeyStore extends KeyStoreSpi {
                     return val;
                 }
             } catch (KeyStoreException e) {
+                // This keystore is broken, just skip it
             }
         }
         return false;
@@ -232,6 +237,7 @@ public class MultiKeyStore extends KeyStoreSpi {
             try {
                 size += ks.size();
             } catch (KeyStoreException e) {
+                // This keystore is broken, just skip it
             }
         }
         return size;
@@ -246,6 +252,7 @@ public class MultiKeyStore extends KeyStoreSpi {
                     return val;
                 }
             } catch (KeyStoreException e) {
+                // This keystore is broken, just skip it
             }
         }
         return false;
@@ -260,6 +267,7 @@ public class MultiKeyStore extends KeyStoreSpi {
                     return val;
                 }
             } catch (KeyStoreException e) {
+                // This keystore is broken, just skip it
             }
         }
         return false;
@@ -274,6 +282,7 @@ public class MultiKeyStore extends KeyStoreSpi {
                     return val;
                 }
             } catch (KeyStoreException e) {
+                // This keystore is broken, just skip it
             }
         }
         return null;
@@ -282,7 +291,6 @@ public class MultiKeyStore extends KeyStoreSpi {
     @Override
     public void engineStore(OutputStream stream, char[] password) throws IOException, NoSuchAlgorithmException, CertificateException {
         System.out.println("engineStore");
-
     }
 
     @Override
