@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class MultiKeyStore extends KeyStoreSpi {
+public class MultiKeyStoreSpi extends KeyStoreSpi {
 
     private final List<KeyStore> stores = new ArrayList<>();
     {

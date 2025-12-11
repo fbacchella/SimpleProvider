@@ -10,7 +10,7 @@ public class SimpleProvider extends Provider {
     public static final String NAME = "Simple";
 
     private static final Map<String, String> SERVICES = Map.of(
-            "KeyStore", MultiKeyStore.class.getCanonicalName(),
+            "KeyStore", MultiKeyStoreSpi.class.getCanonicalName(),
             "KeyManagerFactory", SmartKeyManagerFactorySpi.class.getCanonicalName()
     );
 
