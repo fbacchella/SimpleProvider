@@ -28,7 +28,6 @@ class Loader {
         void apply(MODE mode, Matcher m);
     }
 
-
     static void parse(InputStream stream, MODE expected, Consumer c) throws IOException, NoSuchAlgorithmException, CertificateException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
         String line;

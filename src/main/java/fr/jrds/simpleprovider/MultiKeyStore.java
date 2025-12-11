@@ -1,32 +1,18 @@
 package fr.jrds.simpleprovider;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.Key;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.KeyStoreSpi;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableKeyException;
+import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Date;
-import java.util.Enumeration;
-import java.util.Iterator;
-import java.util.List;
+import java.security.cert.X509Certificate;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -45,11 +31,13 @@ public class MultiKeyStore extends KeyStoreSpi {
     }
 
     static private final CertificateFactory cf;
+    private static final KeyFactory kf;
     static private final MessageDigest digest;
     static {
         try {
             cf = CertificateFactory.getInstance("X.509");
             digest = MessageDigest.getInstance("MD5");
+            kf = KeyFactory.getInstance("RSA");
         } catch (CertificateException | NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
@@ -58,25 +46,21 @@ public class MultiKeyStore extends KeyStoreSpi {
 
     private static final Pattern MARKERS;
     static {
-        String rkey = "(?<rkey>PRIVATE KEY)";
-        String ukey = "(?<ukey>PUBLIC KEY)";
+        String privateKey = "(?<prk>PRIVATE KEY)";
+        String rsakey = "(?<rprk>RSA PRIVATE KEY)";
+        String pubKey = "(?<puk>PUBLIC KEY)";
         String cert = "(?<cert>CERTIFICATE)";
         String epk = "(?<epk>ENCRYPTED PRIVATE KEY)";
-        String begin = String.format("(?<begin>-+BEGIN .*-+)");
-        String end = String.format("(?<end>-+END (?:%s|%s|%s|%s)-+)", rkey, ukey, cert, epk);
+        String begin = "(?<begin>-+BEGIN .*-+)";
+        String end = String.format("(?<end>-+END (?:%s|%s|%s|%s|%s)-+)", privateKey, rsakey, pubKey, cert, epk);
         MARKERS = Pattern.compile(String.format("(?:%s)|(?:%s)|.*?", begin, end));
     }
-    Base64.Decoder decoder = Base64.getDecoder();
-    Base64.Encoder encoder = Base64.getEncoder();
-
-    public MultiKeyStore() {
-        super();
-
-    }
+    private static final Base64.Decoder decoder = Base64.getDecoder();
+    private static final Base64.Encoder encoder = Base64.getEncoder();
 
     @Override
     public Key engineGetKey(String alias, char[] password) throws NoSuchAlgorithmException, UnrecoverableKeyException {
-        for( KeyStore ks: stores) {
+        for (KeyStore ks: stores) {
             try {
                 Key val = ks.getKey(alias, password);
                 if (val != null) {
@@ -90,21 +74,22 @@ public class MultiKeyStore extends KeyStoreSpi {
 
     @Override
     public Certificate[] engineGetCertificateChain(String alias) {
-        for( KeyStore ks: stores) {
+        for (KeyStore ks: stores) {
             try {
                 Certificate[] val = ks.getCertificateChain(alias);
                 if (val != null) {
                     return val;
                 }
             } catch (KeyStoreException e) {
+                // This keystore is broken, just skip it
             }
         }
-        return null;
+        return new Certificate[] {};
     }
 
     @Override
     public Certificate engineGetCertificate(String alias) {
-        for( KeyStore ks: stores) {
+        for (KeyStore ks: stores) {
             try {
                 Certificate val = ks.getCertificate(alias);
                 if (val != null) {
@@ -119,7 +104,7 @@ public class MultiKeyStore extends KeyStoreSpi {
 
     @Override
     public Date engineGetCreationDate(String alias) {
-        for( KeyStore ks: stores) {
+        for (KeyStore ks: stores) {
             try {
                 Date val = ks.getCreationDate(alias);
                 if (val != null) {
@@ -134,20 +119,17 @@ public class MultiKeyStore extends KeyStoreSpi {
 
     @Override
     public void engineSetKeyEntry(String alias, Key key, char[] password, Certificate[] chain) throws KeyStoreException {
-        System.out.println("engineSetKeyEntry");
-
+        throw new UnsupportedOperationException("Read-only key store");
     }
 
     @Override
     public void engineSetKeyEntry(String alias, byte[] key, Certificate[] chain) throws KeyStoreException {
-        System.out.println("engineSetKeyEntry");
-
+        throw new UnsupportedOperationException("Read-only key store");
     }
 
     @Override
     public void engineSetCertificateEntry(String alias, Certificate cert) throws KeyStoreException {
-        System.out.println("engineSetCertificateEntry");
-
+        throw new UnsupportedOperationException("Read-only key store");
     }
 
     @Override
@@ -299,7 +281,7 @@ public class MultiKeyStore extends KeyStoreSpi {
 
     @Override
     public void engineStore(OutputStream stream, char[] password) throws IOException, NoSuchAlgorithmException, CertificateException {
-        System.out.println("engineStore");
+        throw new UnsupportedOperationException("Read-only key store");
     }
 
     @Override
@@ -358,41 +340,73 @@ public class MultiKeyStore extends KeyStoreSpi {
     }
 
     private void loadPem(String filename) {
-        try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
+        Certificate cert = null;
+        PrivateKey key = null;
+        String alias = encoder.encodeToString(filename.getBytes());
+        int count = 0;
+        try (BufferedReader br = Files.newBufferedReader(Paths.get(filename), StandardCharsets.UTF_8)) {
             String line;
             StringBuilder buffer = new StringBuilder();
             while ((line = br.readLine()) != null) {
                 Matcher matcher = MARKERS.matcher(line);
                 matcher.matches();
                 if (matcher.group("begin") != null) {
+                    count++;
                     buffer.setLength(0);
                 } else if (matcher.group("end") != null){
-                    try {
-                        byte[] content = decoder.decode(buffer.toString());
-                        String alias = encoder.encodeToString(digest.digest(content));
-                        // If object already seen, don't add it again
-                        if (stores.get(0).containsAlias(alias)) {
-                            continue;
+                    byte[] content = decoder.decode(buffer.toString());
+                    digest.reset();
+                    if (matcher.group("cert") != null) {
+                        if (cert != null) {
+                            addEntry(alias + "_" + count, cert, key);
+                            cert = null;
+                            key = null;
                         }
-                        if (matcher.group("cert") != null) {
-                            Certificate cert = cf.generateCertificate(new ByteArrayInputStream(content));
-                            KeyStore.TrustedCertificateEntry entry = new KeyStore.TrustedCertificateEntry(cert);
-                            digest.reset();
-                            stores.get(0).setEntry(alias, entry, null);
+                        cert = cf.generateCertificate(new ByteArrayInputStream(content));
+                    } else if (matcher.group("prk") != null){
+                        if (key != null) {
+                            throw new IllegalStateException("Multiple key in a PEM file" + filename);
                         }
-                    } catch (CertificateException e) {
-                        e.printStackTrace();
-                    } catch (KeyStoreException e) {
-                        e.printStackTrace();
+                        PKCS8EncodedKeySpec keyspec = new PKCS8EncodedKeySpec(content);
+                        key = kf.generatePrivate(keyspec);
+                        // If not cert found, the key will be save at the next entry, hopfully a cert
+                        if (cert != null) {
+                            addEntry(alias + count, cert, key);
+                            cert = null;
+                            key = null;
+                        }
+                    } else {
+                        throw new IllegalArgumentException("Unknown PEM entry in file " + filename);
                     }
                 } else {
                     buffer.append(line);
                 }
             }
+            // trying to load last entry
+            addEntry(alias, cert, key);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new IllegalArgumentException("Invalid PEM file " + filename, e);
+        } catch (CertificateException | KeyStoreException | InvalidKeySpecException e) {
+            throw new IllegalArgumentException("Invalid PEM entry in file " + filename, e);
         }
+    }
 
+    private void addEntry(String alias, Certificate cert, PrivateKey key) throws KeyStoreException {
+        if (cert != null && "X.509".equals(cert.getType())) {
+            X509Certificate x509cert = (X509Certificate) cert;
+            alias = x509cert.getSubjectX500Principal().getName();
+        }
+        if (cert == null) {
+            // No certificate found to import
+        } else if (stores.get(0).containsAlias(alias)) {
+            // If object already seen, don't add it again
+        } else  if (key != null) {
+            KeyStore.PrivateKeyEntry entry = new KeyStore.PrivateKeyEntry(key, new Certificate[] {cert});
+            stores.get(0).setEntry(alias, entry, new KeyStore.PasswordProtection(new char[] {}));
+        } else {
+            KeyStore.TrustedCertificateEntry entry = new KeyStore.TrustedCertificateEntry(cert);
+            stores.get(0).setEntry(alias, entry, null);
+        }
     }
 
 }

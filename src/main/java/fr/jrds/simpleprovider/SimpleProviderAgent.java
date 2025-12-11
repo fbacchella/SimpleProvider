@@ -8,6 +8,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
 import java.security.Security;
 import java.security.cert.CertificateException;
+import java.util.List;
 import java.util.ServiceLoader;
 import java.util.regex.Matcher;
 
@@ -18,10 +19,14 @@ public class SimpleProviderAgent {
         //smartpki.put("config", agentArgs);
         Security.insertProviderAt(smartpki, Security.getProviders().length + 1);
 
-        Security.setProperty("keystore.type", SimpleProvider.NAME);
+        for (String p: List.of("keystore.type",
+                               "javax.net.ssl.trustStoreType",
+                               "javax.net.ssl.keyStoreType",
+                               "ssl.KeyManagerFactory.algorithm")
+        ) {
+            System.setProperty(p, SimpleProvider.NAME);
+        }
 
-        System.setProperty("javax.net.ssl.trustStoreType", SimpleProvider.NAME);
-        System.setProperty("javax.net.ssl.keyStoreType", SimpleProvider.NAME);
         if (agentArgs != null) {
             System.setProperty("javax.net.ssl.trustStore", agentArgs);
             System.setProperty("javax.net.ssl.keyStore", agentArgs);

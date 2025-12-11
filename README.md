@@ -43,6 +43,6 @@ It sets the following properties:
  * javax.net.ssl.trustStore
  * javax.net.ssl.keyStore
  
-And the the following security property:
+And the following security property:
 
  * keystore.type
