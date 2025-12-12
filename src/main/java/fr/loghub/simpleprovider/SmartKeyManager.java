@@ -1,4 +1,4 @@
-package fr.jrds.simpleprovider;
+package fr.loghub.simpleprovider;
 
 import java.net.IDN;
 import java.net.Socket;

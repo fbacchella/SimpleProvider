@@ -1,4 +1,4 @@
-package fr.jrds.simpleprovider;
+package fr.loghub.simpleprovider;
 
 import java.security.KeyStore;
 import java.security.KeyStoreException;
